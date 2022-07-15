@@ -14,17 +14,15 @@ library(shinyWidgets)
 library(shinycssloaders)
 library(dplyr)
 library(fmsb)
+library(shinycssloaders)
 
 #getwd()
 data <- read_csv("pokemon.csv")
-
 data <- data %>%
   distinct(pokedex_number, .keep_all = TRUE)
 data <- data[0:721,]
 data$pokedex_number = str_pad(data$pokedex_number, 3, side = "left", "0")
 
-
-# Define UI for application that draws a histogram
 
 ui <- dashboardPage(
   skin = "yellow",
@@ -140,7 +138,7 @@ ui <- dashboardPage(
                              choices = c("attack","defense", "hp", "speed", "sp_attack", "sp_defense"),
                              selected = "attack"
                            )),
-                         fluidRow(plotOutput("averageplot")),
+                         fluidRow(plotOutput("averageplot")%>% withSpinner(color="#0dc5c1")),
                          br(),
                          br()
                 ),
@@ -157,9 +155,9 @@ ui <- dashboardPage(
                          ),
                          fluidRow(
                            column(1,),
-                           column(5,plotOutput("densityplot",height = 500, width = 500 )),
+                           column(5,plotOutput("densityplot",height = 500, width = 500 )%>% withSpinner(color="#0dc5c1")),
                            column(5,),
-                           column(1,dataTableOutput("table1"),width=5)
+                           column(1,dataTableOutput("table1")%>% withSpinner(color="#0dc5c1"),width=5)
                          ))
                 
               ))),
@@ -167,55 +165,56 @@ ui <- dashboardPage(
       ################################################third page
       tabItem(
         tabName = "page3",background = 'blue',
-        #width=12,
-              fluidRow(
-                column(12, h1("Learn About Your Pokemon", style = "text-align:center"))),
-            
-              fluidRow(
-                  column(1),
-                  column(5,
-                  selectInput(
-                    "Pokemon",
-                    "Select Pokemon:",
-                    choices = unique(data$name),
-                    selected = data$name[1]
-                  )
-                ),
-                column(6, )),
-            
-            
-                fluidRow(
-                  fluidRow(column(1, ),
-                           column(5, 
-                                  fluidRow(
-                                    column(6,infoBox("Japanese Name", textOutput('textname'), color="purple",width = 12)),
-                                    column(6,infoBox("Generation",  textOutput('textgen'),color="aqua", width=12))
-                                    ),
-                                  
-                                  fluidRow(
-                                    column(6,infoBox("Ability",   textOutput('textability'), color="red", width=12)),
-                                    column(6,infoBox("Capture Rate",  textOutput('textcap'), color="green", width=12))
-                                  ),
-                                  
-                                  fluidRow(
-                                    column(6,infoBox("Weight",  textOutput('textweight'),  color="yellow", width=12)),
-                                    column(6,infoBox("Height",  textOutput('textheight'), color="light-blue", width=12))
-                                  ),
-                                  
-                                  fluidRow(plotOutput("radarplot",height = 500, width = 500 ))
-                           ),
-                           column(4,
-                                  fluidRow(h2("Pokémon!")),
-                                  fluidRow(column(4,br(),uiOutput('leg')),
-                                           column(4,br(), uiOutput('img2')),
-                                           column(4,br(), uiOutput('img3'))
-                                           ),
-                                  fluidRow(uiOutput("img"))),
-                           column(1, ),
-                  )
-            
-                )
-              )
+        fluidRow(
+          column(12, h1("Learn About Your Pokemon", style = "text-align:center"))),
+        
+        fluidRow(style = "text-align:center",
+                 column(5,
+                        selectInput(
+                          "Pokemon",
+                          "Select Pokemon:",
+                          choices = unique(data$name),
+                          selected = data$name[1]
+                        )
+                 ),
+                 column(6, )),
+        fluidRow(
+          fluidRow(column(5, style = "text-align:center",
+                          fluidRow(
+                            column(6,box(strong("Japanese Name"), textOutput('textname'), color='white',width = 12)),
+                            column(6,box(strong("Generation"),  textOutput('textgen'),color='white', width=12))
+                          ),
+                          
+                          fluidRow(
+                            column(6,box(strong("Ability"),   textOutput('textability'), color="white", width=12)),
+                            column(6,box(strong("Capture Rate"),  textOutput('textcap'), color="white", width=12))
+                          ),
+                          
+                          fluidRow(
+                            column(6,box(strong("Weight"),  textOutput('textweight'),  color="white", width=12)),
+                            column(6,box(strong("Height"),  textOutput('textheight'), color="white", width=12))
+                          ),
+                          
+                          fluidRow(plotOutput("radarplot",height = 500, width = 500 ))
+          ),
+          column(1, ),
+          column(4,
+                 fluidRow(h2("Pok茅mon!")),
+                 fluidRow(column(4,br(),uiOutput('leg')),
+                          column(4,br(), uiOutput('img2')),
+                          column(4,br(), uiOutput('img3'))
+                 ),
+                 fluidRow(tags$img(
+                   src = "pokeball.png",
+                   style = 'position: absolute; opacity: 0.1;',
+                   height = 300,
+                   width = 400,
+                   style='right'),uiOutput("img"))),
+          column(1, ),
+          )
+          
+          
+        ))
       ,
       ################################################fourth page
       tabItem(tabName = "page4",
@@ -250,14 +249,23 @@ ui <- dashboardPage(
 
 
 server <- function(input, output, session) {
-
-################################################second page  
-  # output$densityplot1 <- renderPlot({
-  #   den <- ggplot(data, aes(input$attribute1))+ 
-  #     geom_density(col="white",fill="pink", alpha=0.8) + 
-  #     ggtitle(paste0("Density Plot of ",input$attribute1))
-  #   return(den)
-  # })
+  
+  ################################################second page  
+  
+  output$averageplot <- renderPlot({
+    avgstats = data %>%
+      select(c("attack","defense", "hp", "speed", "sp_attack", "sp_defense","generation"))%>%
+      group_by(generation)%>%
+      summarise(across(everything(), list(mean)))
+    
+    colnames(avgstats) <- c("generation","attack","defense", "hp", "speed", "sp_attack", "sp_defense")
+    
+    avgstats=as.data.frame(avgstats)
+    
+    gen=ggplot(avgstats, mapping=aes_string(x="generation", y=input$attribute1)) + 
+      geom_line(linetype="dashed", color = "#0099f9", size=2)
+    return(gen)
+  })
   
   output$densityplot <- renderPlot({
     den <- ggplot(data,aes_string(input$attribute2))+
@@ -266,25 +274,10 @@ server <- function(input, output, session) {
     return(den)
   })
   
-  output$averageplot <- renderPlot({
-    avgstats = data %>%
-      select(c("attack","defense", "hp", "speed", "sp_attack", "sp_defense","generation"))%>%
-      group_by(generation)%>%
-      summarise(across(everything(), list(mean)))
-    
-    colnames(avgstats) <- c('generation',"attack","defense", "hp", "speed", "sp_attack", "sp_defense")
-    
-    avgstats=as.data.frame(avgstats)
-    
-    gen=ggplot(avgstats, mapping=aes(x=generation, y=aes_string(input$attribute1))) + 
-      geom_line(linetype="dashed", color = "#0099f9", size=2)
-    return(gen)
-  })
-  
   output$table1=renderDataTable({
     data <- data %>% 
-      arrange(desc(attack)) %>%
-      select(name,attack) %>%
+      arrange(desc(input$attribute2)) %>%
+      select(name,input$attribute2) %>%
       head(n=15)
     
     headerCallbackRemoveHeaderFooter <- c(
@@ -301,14 +294,14 @@ server <- function(input, output, session) {
                        "$('table.dataTable.no-footer').css('border-bottom', 'none');"),
                      options = list(
                        dom = "t",
-                       ordering = FALSE,
+                       ordering = TRUE,
                        paging = FALSE,
                        searching = FALSE,
                        headerCallback = JS(headerCallbackRemoveHeaderFooter)
                      )))
   })
   
-################################################third page
+  ################################################third page
   da <- reactive({
     input$Pokemon
   })
@@ -360,10 +353,10 @@ server <- function(input, output, session) {
         height = "30",
         align = "center"
       )) }
-
-    })
-
-
+    
+  })
+  
+  
   output$textname = renderText({
     data$japanese_name[which(data$name==da())]
   })
@@ -384,60 +377,13 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
-  
-  
-  
   # rank=data%>%
   #   select(speed,attack,defense,hp)%>%
   #   mutate(r_s=rank(speed)/721*100,r_a=rank(attack)/721*100,r_d=rank(defense)/721*100,r_h=rank(hp)/721*100)%>%
   #   filter(data$name==da())
-  output$table1=renderDataTable({
-    
-    type1 =data$type1[which(data$name==da())]
-    
-    colorselect = if(type1 == 'grass'){'#47d147'
-    } else if (type1 == 'fire'){'#ff0000'}else if (type1 == 'water'){'#0066ff'}else if (type1 == 'bug'){'#999966'
-    }else if (type1 == 'normal'){'#d9d9d9'}else if (type1 == 'poison'){'#9900cc'}else if (type1 == 'electric'){'#ffff00'
-    }else if (type1 == 'ground'){'#ff80ff'}else if (type1 == 'fairy'){'#ff80ff'}else if (type1 == 'fighting'){'#ff5c33'}else if (type1 == 'psychic'){'#ff3399'
-    }else if (type1 == 'rock'){'#cc6600'}else if (type1 == 'ghost'){'#a366ff'}else if (type1 == 'Ice'){'#66ffff'
-    }else if (type1 == 'dragon'){'#0000cc'}else if (type1 == 'dark'){'#00264d'}else if (type1 == 'steel'){'#bfbfbf'
-    }else{'#99ffff'}
-    
-    colorselect <- alpha(colorselect,0.3)
-    
-    data=data%>%
-      filter(name==da())%>%
-      select(pokedex_number,japanese_name,generation,abilities,capture_rate,weight_kg,height_m)%>%
-      t()
-    
-    row.names(data)[1:7]=(c("Pokemon Index","Japanese Name","Generation","Ability","Capture Rate","Weight","Height"))
-    
-
-    headerCallbackRemoveHeaderFooter <- c(
-      "function(thead, data, start, end, display){",
-      "  $('th', thead).css('display', 'none');",
-      "}"
-    )
-    return(datatable(data = data, 
-                     rownames = TRUE,
-                     filter = "none",
-                     selection = 'none',
-                     width = 500,
-                     callback = JS(
-                       "$('table.dataTable.no-footer').css('border-bottom', 'none');"),
-                     options = list(
-                       dom = "t",
-                       ordering = FALSE,
-                       paging = FALSE,
-                       searching = FALSE,
-                       headerCallback = JS(headerCallbackRemoveHeaderFooter)
-                     ))%>% formatStyle(columns = "V1", target = "cell", backgroundColor = colorselect))
-  })
-
+  
+  
   output$radarplot=renderPlot({
-    
     
     type1 =data$type1[which(data$name==da())]
     
@@ -469,17 +415,17 @@ server <- function(input, output, session) {
     colnames(radarnum)[1:6]=(c("Title","Hp","Speed","Attack","Special Attack","Defense","Special Defense"))
     
     return(radarchart(radarnum,
-                             cglty = 1,       # Grid line type
-                             cglcol = "grey", # Grid line color
-                             plwd = 1,        # Width for each line
-                             plty = 1,
-                             pcol = 'grey',  ##line color
-                             pfcol = colorselect,#fill color
-                             vlcex=1.5
-                             ))
-    #return(raderchart1)
+                      cglty = 1,       # Grid line type
+                      cglcol = "grey", # Grid line color
+                      plwd = 1,        # Width for each line
+                      plty = 1,
+                      pcol = 'grey',  ##line color
+                      pfcol = colorselect,#fill color
+                      vlcex=1.5
+    ))
+    
   })
-################################################fourth page  
+  ################################################fourth page  
   
   da1 <- reactive({
     input$Pokemon1
